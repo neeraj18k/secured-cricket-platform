@@ -1,0 +1,15 @@
+# --- BACKEND SECURITY (Critical) ---
+backend/.env
+backend/users.json
+backend/node_modules
+
+# --- FRONTEND IGNORES ---
+frontend/node_modules
+frontend/dist
+frontend/build
+frontend/.env.local
+
+# --- SYSTEM FILES ---
+.DS_Store
+.git
+.vscode
