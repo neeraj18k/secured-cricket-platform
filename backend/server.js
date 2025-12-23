@@ -1,4 +1,11 @@
+require('dotenv').config();
 const express = require('express');
+const mongoose = require('mongoose');
+
+// Database se connect karne ka code
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => console.log('✅ MongoDB se connection kamyab raha!'))
+  .catch(err => console.error('❌ Database connection mein error:', err));
 const cors = require('cors');
 const dotenv = require('dotenv');
 const rateLimit = require('express-rate-limit'); // 👈 1. IMPORT THIS
