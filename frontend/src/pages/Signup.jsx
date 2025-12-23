@@ -40,7 +40,7 @@ export default function Signup() {
               type="text" 
               placeholder="Name" 
               className="w-full p-3 rounded bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-blue-500 transition-colors"
-              onChange={e => setFormData({...formData, usernamename: e.target.value})}
+              onChange={e => setFormData({...formData, username: e.target.value})}
               required
             />
           </div>
