@@ -1,0 +1,84 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* --- GLOBAL DEFAULTS (Keep Dashboard Dark) --- */
+body {
+  font-family: 'Inter', sans-serif;
+  /* Default dark theme for Dashboard */
+  background-color: #0F172A; 
+  color: #ffffff;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+/* --- UTILITY CLASSES FOR DASHBOARD --- */
+.glass-panel {
+  background: rgba(30, 41, 59, 0.7);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.neon-text {
+  text-shadow: 0 0 10px rgba(0, 224, 255, 0.5);
+}
+
+/* --- LOGIN PAGE SPECIFIC STYLES (The New Abstract UI) --- */
+/* This overrides the dark body only on the login page wrapper */
+
+.abstract-bg {
+  /* This gradient covers the dark body background */
+  background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%);
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Floating Blob Shapes for Login */
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(50px);
+  z-index: 0;
+  animation: float 10s infinite ease-in-out;
+}
+
+.blob-1 {
+  top: -10%;
+  left: -10%;
+  width: 500px;
+  height: 500px;
+  background: linear-gradient(to right, #6a11cb, #2575fc);
+  animation-delay: 0s;
+  opacity: 0.7;
+}
+
+.blob-2 {
+  bottom: -10%;
+  right: -10%;
+  width: 600px;
+  height: 600px;
+  background: linear-gradient(to left, #00c6ff, #0072ff);
+  animation-delay: 2s;
+  opacity: 0.6;
+}
+
+.blob-3 {
+  top: 40%;
+  left: 30%;
+  width: 300px;
+  height: 300px;
+  background: #a18cd1;
+  animation-delay: 4s;
+  opacity: 0.5;
+}
+
+@keyframes float {
+  0% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(20px, -20px) scale(1.1); }
+  100% { transform: translate(0, 0) scale(1); }
+}
