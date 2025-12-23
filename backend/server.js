@@ -2,8 +2,11 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const nodemailer = require('nodemailer');
-const crypto = require('crypto'); // For reset tokens
+const crypto = require('crypto');
+
+// 👇 Imports from your other files
+const { sendEmail } = require('./mailer'); 
+const cricketRoutes = require('./cricket'); 
 
 const app = express();
 app.use(express.json());
@@ -14,16 +17,7 @@ mongoose.connect(process.env.MONGODB_URI)
     .then(() => console.log('✅ MongoDB Connected'))
     .catch(err => console.log('❌ DB Connection Error:', err));
 
-// 2. Email Setup
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS // Ensure NO SPACES in Render settings
-    }
-});
-
-// 3. User Schema (Added reset token fields)
+// 2. User Schema
 const userSchema = new mongoose.Schema({
     username: { type: String, required: true },
     email: { type: String, required: true, unique: true },
@@ -33,9 +27,12 @@ const userSchema = new mongoose.Schema({
 });
 const User = mongoose.model('User', userSchema);
 
-// --- ROUTES ---
+// --- ROUTES SETUP ---
 
-// 4. SIGNUP (With Email Fix)
+// 3. Connect Cricket Data Routes
+app.use('/api/cricket', cricketRoutes);
+
+// 4. SIGNUP Route (Integrated with mailer.js)
 app.post('/api/auth/signup', async (req, res) => {
     try {
         const { username, email, password } = req.body;
@@ -44,85 +41,53 @@ app.post('/api/auth/signup', async (req, res) => {
 
         user = new User({ username, email, password });
         await user.save();
-        console.log("✅ User Saved:", email);
+        console.log("✅ User Registered:", email);
 
-        const mailOptions = {
-            from: process.env.EMAIL_USER,
-            to: email,
-            subject: 'Welcome to Secure Cricket! 🏏',
-            html: `<h3>Hello ${username}, welcome to the platform built by Neeraj!</h3>`
-        };
-
-        transporter.sendMail(mailOptions, (err) => {
-            if (err) console.log("📧 Signup Email Error:", err);
-            else console.log("📧 Signup Email Sent!");
-        });
+        // Send Welcome Email
+        const welcomeContent = `
+            <div style="font-family: Arial; padding: 20px; background: #f9fafb; border-radius: 10px;">
+                <h2 style="color: #1e1b4b;">Welcome to Secure Cricket, ${username}! 🏏</h2>
+                <p>Built with ❤️ by <b>Neeraj</b>. Your premium dashboard is live.</p>
+                <a href="https://secured-cricket-platform.vercel.app/login" style="display:inline-block; background:#4f46e5; color:white; padding:10px 20px; text-decoration:none; border-radius:5px;">Login Now</a>
+            </div>`;
+        
+        await sendEmail(email, 'Welcome to Secure Cricket! 🏏', welcomeContent);
 
         res.status(201).json({ success: true, message: "Signup Success!" });
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-// 5. LOGIN
+// 5. LOGIN Route
 app.post('/api/auth/login', async (req, res) => {
     try {
         const { email, password } = req.body;
         const user = await User.findOne({ email });
-        if (!user || user.password !== password) return res.status(400).json({ success: false, message: "Wrong Credentials" });
+        if (!user || user.password !== password) return res.status(400).json({ success: false, message: "Invalid Credentials" });
 
         res.json({ success: true, user: { id: user._id, name: user.username, email: user.email } });
     } catch (err) { res.status(500).json({ success: false, message: "Server Error" }); }
 });
 
-// 6. FORGOT PASSWORD (Fixed for MongoDB)
+// 6. FORGOT PASSWORD (Using mailer.js)
 app.post('/api/auth/forgot-password', async (req, res) => {
     try {
         const { email } = req.body;
         const user = await User.findOne({ email });
+        if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
-        if (!user) {
-            console.log("❌ Forgot Pass: User not found for", email);
-            return res.status(404).json({ success: false, message: "User not found" });
-        }
-
-        // Generate Token
         const token = crypto.randomBytes(20).toString('hex');
         user.resetToken = token;
         user.resetTokenExpiry = Date.now() + 3600000; // 1 hour
         await user.save();
 
         const resetLink = `https://secured-cricket-platform.vercel.app/reset-password/${token}`;
+        const resetHtml = `<p>You requested a password reset. Click <a href="${resetLink}">here</a> to reset it.</p>`;
+        
+        await sendEmail(email, 'Password Reset Request 🔒', resetHtml);
 
-        const mailOptions = {
-            from: process.env.EMAIL_USER,
-            to: email,
-            subject: 'Password Reset Request 🔒',
-            html: `<p>Click <a href="${resetLink}">here</a> to reset your password. Link expires in 1 hour.</p>`
-        };
-
-        transporter.sendMail(mailOptions, (err) => {
-            if (err) console.log("📧 Reset Email Error:", err);
-            else console.log("📧 Reset Email Sent!");
-        });
-
-        res.json({ success: true, message: "Reset link sent to email!" });
+        res.json({ success: true, message: "Reset link sent!" });
     } catch (err) { res.status(500).json({ success: false, message: "Server Error" }); }
 });
-
-// 7. DASHBOARD DATA (Restored)
-app.get('/api/cricket/match-status', (req, res) => res.json({
-    match: "IND vs AUS", venue: "MCG", homeTeam: { name: "India", score: "192/3", overs: 19.1 },
-    stats: { projected: "205", winProb: "85%", crr: "10.05", partnership: "74 (32)" }
-}));
-app.get('/api/cricket/analytics', (req, res) => res.json({
-    recentOvers: [{score: "4", type: "boundary"}, {score: "6", type: "six"}],
-    runProgression: [{over: 1, runs: 12}, {over: 15, runs: 152}],
-    phaseAnalysis: [{name: "Powerplay", runs: 58}],
-    commentary: [{over: "19.1", text: "SIX!"}]
-}));
-app.get('/api/cricket/news', (req, res) => res.json([{ id: 1, title: "Kohli's Masterclass", time: "5m ago" }]));
-app.get('/api/cricket/players', (req, res) => res.json([{ id: 1, name: "Virat Kohli", role: "Batsman", stats: { runs: 82 } }]));
-app.get('/api/cricket/standings', (req, res) => res.json([{ rank: 1, team: "India", points: 10 }]));
-app.get('/api/cricket/upcoming', (req, res) => res.json([{ id: 1, match: "IND vs PAK", date: "Sunday" }]));
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
