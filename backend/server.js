@@ -13,7 +13,7 @@ mongoose.connect(process.env.MONGODB_URI)
     .then(() => console.log('✅ MongoDB Connected'))
     .catch(err => console.log('❌ Connection Error:', err));
 
-// 2. Email Transporter
+// 2. Email Transporter (Use Environment Variables in Render)
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
@@ -24,13 +24,13 @@ const transporter = nodemailer.createTransport({
 
 // 3. User Schema
 const userSchema = new mongoose.Schema({
-    username: { type: String, default: "User" },
+    username: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true }
 });
 const User = mongoose.model('User', userSchema);
 
-// 4. Signup Route
+// 4. Signup Route (With Welcome Email)
 app.post('/api/auth/signup', async (req, res) => {
     try {
         const { name, email, password } = req.body;
@@ -40,11 +40,16 @@ app.post('/api/auth/signup', async (req, res) => {
         user = new User({ username: name, email, password });
         await user.save();
 
+        // Welcome Email (Neeraj's Branding)
         const mailOptions = {
             from: process.env.EMAIL_USER,
             to: email,
-            subject: 'Welcome to Our Platform! 🎉',
-            text: `Hi ${name || 'User'},\n\nAccount created successfully!`
+            subject: 'Welcome to Secure Cricket! 🏏 (Built by Neeraj)',
+            html: `<div style="font-family: Arial; padding: 20px; border: 1px solid #eee;">
+                    <h2 style="color: #1e1b4b;">Hello ${name}! 👋</h2>
+                    <p>Welcome to the platform built by <b>Neeraj</b>.</p>
+                    <p>Login to see your real-time analytics.</p>
+                   </div>`
         };
 
         transporter.sendMail(mailOptions, (error) => {
@@ -58,7 +63,7 @@ app.post('/api/auth/signup', async (req, res) => {
     }
 });
 
-// 5. Login Route (FIXED FOR DASHBOARD CRASH)
+// 5. Login Route (FIX FOR DASHBOARD CRASH)
 app.post('/api/auth/login', async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -68,13 +73,12 @@ app.post('/api/auth/login', async (req, res) => {
             return res.status(400).json({ success: false, msg: "Invalid Credentials" });
         }
 
-        // Frontend ko 'name' chahiye dashboard ke liye
+        // IMPORTANT: Sending 'name' to satisfy Dashboard.jsx
         res.json({ 
             success: true, 
             user: { 
                 id: user._id, 
-                username: user.username, 
-                name: user.username, // 👈 Ye 'name' frontend crash hone se bachaega
+                name: user.username, // 👈 Frontend 'user.name' yahan se lega
                 email: user.email 
             } 
         });
@@ -83,13 +87,23 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
-// 6. Missing Cricket Routes (Fix for 404s)
+// 6. Dashboard Cricket Data Routes (To prevent 404s)
 app.get('/api/cricket/upcoming', (req, res) => res.json([]));
 app.get('/api/cricket/news', (req, res) => res.json([]));
 app.get('/api/cricket/players', (req, res) => res.json([]));
 app.get('/api/cricket/standings', (req, res) => res.json([]));
-app.get('/api/cricket/match-status', (req, res) => res.json({ status: "No Live Matches" }));
-app.get('/api/cricket/analytics', (req, res) => res.json({ visitors: 1 }));
+app.get('/api/cricket/match-status', (req, res) => res.json({ 
+    match: "No Live Match", 
+    venue: "Stadium", 
+    homeTeam: { name: "Team A", score: "0/0", overs: 0 },
+    stats: { projected: 0, winProb: "0%", crr: 0, partnership: "0" }
+}));
+app.get('/api/cricket/analytics', (req, res) => res.json({ 
+    recentOvers: [], 
+    runProgression: [], 
+    phaseAnalysis: [], 
+    commentary: [] 
+}));
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server on ${PORT}`));
