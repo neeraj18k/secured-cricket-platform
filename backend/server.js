@@ -5,8 +5,8 @@ const cors = require('cors');
 const crypto = require('crypto');
 
 // 👇 Imports from your other files
-const { sendEmail } = require('./mailer'); 
-const cricketRoutes = require('./cricket'); 
+const { sendEmail } = require('./utils/mailer'); 
+const cricketRoutes = require('./routes/cricket'); 
 
 const app = express();
 app.use(express.json());
