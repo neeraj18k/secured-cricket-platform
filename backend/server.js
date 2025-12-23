@@ -1,4 +1,4 @@
-require('dotenv').config(); // Local testing ke liye
+require('dotenv').config(); //
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -13,16 +13,18 @@ mongoose.connect(mongoURI)
     .then(() => console.log('✅✅✅ MONGODB CONNECTED SUCCESSFULLY!'))
     .catch(err => console.log('❌ Connection Error:', err));
 
-// 2. User Schema (Username ko optional rakha hai taaki error na aaye)
+// 2. User Schema (Validation Error Fix)
 const userSchema = new mongoose.Schema({
-    username: { type: String, default: "User" }, 
+    // Isko 'required: false' rakha hai taaki agar frontend se name na bhi aaye toh crash na ho
+    username: { type: String, required: false, default: "User" }, 
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     date: { type: Date, default: Date.now }
-});
+}, { strict: false }); //
+
 const User = mongoose.model('User', userSchema);
 
-// 3. Signup Route (Fix for Name/Username mismatch)
+// 3. Signup Route
 app.post('/api/auth/signup', async (req, res) => {
     try {
         const { name, username, email, password } = req.body;
@@ -31,7 +33,7 @@ app.post('/api/auth/signup', async (req, res) => {
         let user = await User.findOne({ email });
         if (user) return res.status(400).json({ msg: "User already exists" });
 
-        // Frontend agar 'name' bhej raha hai toh use 'username' bana do
+        // Frontend ke 'name' field ko 'username' mein map karna
         const finalUsername = username || name || "User";
 
         user = new User({ 
