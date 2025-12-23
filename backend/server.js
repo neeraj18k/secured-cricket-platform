@@ -1,4 +1,4 @@
-require('dotenv').config(); // Sabse upar hona chahiye
+require('dotenv').config(); // Local testing ke liye
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -13,60 +13,51 @@ mongoose.connect(mongoURI)
     .then(() => console.log('✅✅✅ MONGODB CONNECTED SUCCESSFULLY!'))
     .catch(err => console.log('❌ Connection Error:', err));
 
-// 2. User Schema & Model (Database ki structure)
+// 2. User Schema (Username ko optional rakha hai taaki error na aaye)
 const userSchema = new mongoose.Schema({
-    username: { type: String, required: true },
+    username: { type: String, default: "User" }, 
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     date: { type: Date, default: Date.now }
 });
 const User = mongoose.model('User', userSchema);
 
-// 3. Signup Route (Naya user banane ke liye)
+// 3. Signup Route (Fix for Name/Username mismatch)
 app.post('/api/auth/signup', async (req, res) => {
     try {
-        const { username, email, password } = req.body;
+        const { name, username, email, password } = req.body;
 
-        // Check karein ki user pehle se toh nahi hai
+        // Check if user exists
         let user = await User.findOne({ email });
         if (user) return res.status(400).json({ msg: "User already exists" });
 
-        // Naya user save karein
-        user = new User({ username, email, password });
-        await user.save(); 
+        // Frontend agar 'name' bhej raha hai toh use 'username' bana do
+        const finalUsername = username || name || "User";
 
-        res.status(201).json({ msg: "User registered successfully in MongoDB!" });
+        user = new User({ 
+            username: finalUsername, 
+            email, 
+            password 
+        });
+        
+        await user.save(); //
+        res.status(201).json({ msg: "User registered successfully!" });
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ msg: "Server Error" });
+        console.error("Signup Error:", err);
+        res.status(500).json({ message: err.message });
     }
 });
 
-// 4. Login Route (User verify karne ke liye)
+// 4. Login Route
 app.post('/api/auth/login', async (req, res) => {
     try {
         const { email, password } = req.body;
-
-        // User ko database mein dhoondein
         const user = await User.findOne({ email });
+        
         if (!user) return res.status(400).json({ msg: "Invalid Credentials" });
-
-        // Password check karein (abhi simple text match ho raha hai)
-        if (user.password !== password) {
-            return res.status(400).json({ msg: "Invalid Credentials" });
-        }
+        if (user.password !== password) return res.status(400).json({ msg: "Invalid Credentials" });
 
         res.json({ msg: "Login successful!", user: { username: user.username, email: user.email } });
-    } catch (err) {
-        res.status(500).json({ msg: "Server Error" });
-    }
-});
-
-// 5. Admin Route: Sabhi users dekhne ke liye
-app.get('/api/auth/admin/all-users', async (req, res) => {
-    try {
-        const users = await User.find().select('-password'); // Password chhupa kar baki data dikhayega
-        res.json(users);
     } catch (err) {
         res.status(500).json({ msg: "Server Error" });
     }
