@@ -4,7 +4,6 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const crypto = require('crypto');
 
-// 👇 Imports from your other files
 const { sendEmail } = require('./utils/mailer'); 
 const cricketRoutes = require('./routes/cricket'); 
 
@@ -12,12 +11,10 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// 1. MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI)
     .then(() => console.log('✅ MongoDB Connected'))
     .catch(err => console.log('❌ DB Connection Error:', err));
 
-// 2. User Schema (Added reset token fields for Forgot Password)
 const userSchema = new mongoose.Schema({
     username: { type: String, required: true },
     email: { type: String, required: true, unique: true },
@@ -27,82 +24,56 @@ const userSchema = new mongoose.Schema({
 });
 const User = mongoose.model('User', userSchema);
 
-// --- ROUTES SETUP ---
-
-// 3. Connect Cricket Data Routes (from cricket.js)
 app.use('/api/cricket', cricketRoutes);
 
-// 4. SIGNUP Route (Using mailer.js)
+// 4. SIGNUP Route (FIXED WITH AWAIT)
 app.post('/api/auth/signup', async (req, res) => {
     try {
         const { username, email, password } = req.body;
         let user = await User.findOne({ email });
-        if (user) return res.status(400).json({ success: false, message: "User already exists" });
+        if (user) return res.status(400).json({ success: false, message: "User exists" });
 
         user = new User({ username, email, password });
         await user.save();
-        console.log("✅ User Registered:", email);
+        console.log("✅ User Saved:", email);
 
-        // Welcome Email Content
-        const welcomeContent = `
-            <div style="font-family: Arial; padding: 20px; background: #f0f4ff; border-radius: 10px; border: 1px solid #4f46e5;">
-                <h2 style="color: #1e1b4b;">Welcome to Secure Cricket, ${username}! 🏏</h2>
-                <p>Built with ❤️ by <b>Neeraj</b>. Your premium dashboard is now live.</p>
-                <p>Explore real-time stats and historic records.</p>
-                <a href="https://secured-cricket-platform.vercel.app/login" style="display:inline-block; background:#4f46e5; color:white; padding:12px 24px; text-decoration:none; border-radius:25px; font-weight:bold;">Login Now</a>
-            </div>`;
+        const welcomeContent = `<h3>Welcome ${username}! Built by Neeraj.</h3>`;
         
-        // Calling mailer.js function
-        await sendEmail(email, 'Welcome to Secure Cricket! 🏏', welcomeContent);
+        // 👇 AWAIT LAGANA ZAROORI HAI
+        console.log("📧 Sending Email...");
+        const emailSent = await sendEmail(email, 'Welcome to Secure Cricket! 🏏', welcomeContent);
+        
+        if(emailSent) console.log("✅ Email successfully triggered from Signup");
+        else console.log("❌ Email failed to trigger from Signup");
 
-        res.status(201).json({ success: true, message: "Signup Success! Check your email." });
+        res.status(201).json({ success: true, message: "Signup Success!" });
     } catch (err) { 
         console.log("🔥 Signup Error:", err.message);
         res.status(500).json({ success: false, message: err.message }); 
     }
 });
 
-// 5. LOGIN Route
-app.post('/api/auth/login', async (req, res) => {
-    try {
-        const { email, password } = req.body;
-        const user = await User.findOne({ email });
-        if (!user || user.password !== password) return res.status(400).json({ success: false, message: "Invalid Credentials" });
-
-        res.json({ 
-            success: true, 
-            user: { id: user._id, name: user.username, email: user.email } 
-        });
-    } catch (err) { res.status(500).json({ success: false, message: "Server Error" }); }
-});
-
-// 6. FORGOT PASSWORD (Using mailer.js)
+// 6. FORGOT PASSWORD (FIXED WITH AWAIT)
 app.post('/api/auth/forgot-password', async (req, res) => {
     try {
         const { email } = req.body;
         const user = await User.findOne({ email });
         if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
-        // Create secure reset token
         const token = crypto.randomBytes(20).toString('hex');
         user.resetToken = token;
-        user.resetTokenExpiry = Date.now() + 3600000; // Expires in 1 hour
+        user.resetTokenExpiry = Date.now() + 3600000;
         await user.save();
 
         const resetLink = `https://secured-cricket-platform.vercel.app/reset-password/${token}`;
-        const resetHtml = `
-            <div style="font-family: Arial; padding: 20px;">
-                <h3>Password Reset Request 🔒</h3>
-                <p>You requested a password reset. Click the link below to set a new password:</p>
-                <a href="${resetLink}" style="color: #4f46e5; font-weight: bold;">Reset My Password</a>
-                <p>This link will expire in 1 hour.</p>
-            </div>`;
+        const resetHtml = `<p>Reset link: <a href="${resetLink}">Click here</a></p>`;
         
+        // 👇 AWAIT LAGANA ZAROORI HAI
+        console.log("📧 Sending Reset Email...");
         await sendEmail(email, 'Password Reset Request 🔒', resetHtml);
 
-        res.json({ success: true, message: "Reset link sent to your email!" });
+        res.json({ success: true, message: "Reset link sent!" });
     } catch (err) { 
-        console.log("🔥 Forgot Pass Error:", err.message);
         res.status(500).json({ success: false, message: "Server Error" }); 
     }
 });
