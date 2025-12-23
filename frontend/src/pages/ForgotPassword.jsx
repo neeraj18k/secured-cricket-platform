@@ -15,7 +15,7 @@ export default function ForgotPassword() {
 
     try {
       // Send request to backend
-      const res = await axios.post('http://localhost:5000/api/auth/forgot-password', { email });
+      const res = await axios.post('https://secured-cricket-platform.onrender.com/api/auth/forgot-password', { email });
       
       // Show success message
       toast.success(res.data.message || 'Reset link sent to your email!');

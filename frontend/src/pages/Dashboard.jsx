@@ -26,12 +26,12 @@ export default function Dashboard() {
     const fetchData = async () => {
       try {
         const [matchRes, playersRes, newsRes, analyticsRes, standingsRes, upcomingRes] = await Promise.all([
-            axios.get('http://localhost:5000/api/cricket/match-status'),
-            axios.get('http://localhost:5000/api/cricket/players'),
-            axios.get('http://localhost:5000/api/cricket/news'),
-            axios.get('http://localhost:5000/api/cricket/analytics'),
-            axios.get('http://localhost:5000/api/cricket/standings'),
-            axios.get('http://localhost:5000/api/cricket/upcoming')
+            axios.get('https://secured-cricket-platform.onrender.com/api/cricket/match-status'),
+            axios.get('https://secured-cricket-platform.onrender.com/api/cricket/players'),
+            axios.get('https://secured-cricket-platform.onrender.com/api/cricket/news'),
+            axios.get('https://secured-cricket-platform.onrender.com/api/cricket/analytics'),
+            axios.get('https://secured-cricket-platform.onrender.com/api/cricket/standings'),
+            axios.get('https://secured-cricket-platform.onrender.com/api/cricket/upcoming')
         ]);
         
         setMatch(matchRes.data);

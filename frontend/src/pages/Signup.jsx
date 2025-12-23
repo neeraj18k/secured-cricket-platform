@@ -11,7 +11,7 @@ export default function Signup() {
     e.preventDefault();
     try {
       // Send data to backend
-      await axios.post('http://localhost:5000/api/auth/signup', formData);
+      await axios.post('https://secured-cricket-platform.onrender.com/api/auth/signup', formData);
       
       // If successful:
       alert('Account Created Successfully!');
