@@ -1,69 +1,81 @@
-require('dotenv').config(); //
+require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const nodemailer = require('nodemailer');
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
 // 1. MongoDB Connection
-const mongoURI = process.env.MONGODB_URI; 
-mongoose.connect(mongoURI)
-    .then(() => console.log('✅✅✅ MONGODB CONNECTED SUCCESSFULLY!'))
+mongoose.connect(process.env.MONGODB_URI)
+    .then(() => console.log('✅ MongoDB Connected'))
     .catch(err => console.log('❌ Connection Error:', err));
 
-// 2. User Schema (Validation Error Fix)
-const userSchema = new mongoose.Schema({
-    // Isko 'required: false' rakha hai taaki agar frontend se name na bhi aaye toh crash na ho
-    username: { type: String, required: false, default: "User" }, 
-    email: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
-    date: { type: Date, default: Date.now }
-}, { strict: false }); //
-
-const User = mongoose.model('User', userSchema);
-
-// 3. Signup Route
-app.post('/api/auth/signup', async (req, res) => {
-    try {
-        const { name, username, email, password } = req.body;
-
-        // Check if user exists
-        let user = await User.findOne({ email });
-        if (user) return res.status(400).json({ msg: "User already exists" });
-
-        // Frontend ke 'name' field ko 'username' mein map karna
-        const finalUsername = username || name || "User";
-
-        user = new User({ 
-            username: finalUsername, 
-            email, 
-            password 
-        });
-        
-        await user.save(); //
-        res.status(201).json({ msg: "User registered successfully!" });
-    } catch (err) {
-        console.error("Signup Error:", err);
-        res.status(500).json({ message: err.message });
+// 2. Email Transporter (Credentials Hidden in Environment Variables)
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.EMAIL_USER, // Render se uthayega
+        pass: process.env.EMAIL_PASS  // Render se uthayega
     }
 });
 
-// 4. Login Route
+// 3. User Schema
+const userSchema = new mongoose.Schema({
+    username: { type: String, default: "User" },
+    email: { type: String, required: true, unique: true },
+    password: { type: String, required: true }
+});
+const User = mongoose.model('User', userSchema);
+
+// 4. Signup Route with Email
+app.post('/api/auth/signup', async (req, res) => {
+    try {
+        const { name, email, password } = req.body;
+        let user = await User.findOne({ email });
+        if (user) return res.status(400).json({ success: false, msg: "User already exists" });
+
+        user = new User({ username: name, email, password });
+        await user.save();
+
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: email,
+            subject: 'Welcome to Our Platform! 🎉',
+            text: `Hi ${name || 'User'},\n\nWelcome to our platform! Account created successfully.`
+        };
+
+        transporter.sendMail(mailOptions, (err) => {
+            if (err) console.log("Email Failed:", err);
+            else console.log("Email Sent to:", email);
+        });
+
+        res.status(201).json({ success: true, msg: "User registered!" });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// 5. Login Route (Dashboard Fix)
 app.post('/api/auth/login', async (req, res) => {
     try {
         const { email, password } = req.body;
         const user = await User.findOne({ email });
-        
-        if (!user) return res.status(400).json({ msg: "Invalid Credentials" });
-        if (user.password !== password) return res.status(400).json({ msg: "Invalid Credentials" });
 
-        res.json({ msg: "Login successful!", user: { username: user.username, email: user.email } });
+        if (!user || user.password !== password) {
+            return res.status(400).json({ success: false, msg: "Invalid Credentials" });
+        }
+
+        res.json({ 
+            success: true, 
+            user: { id: user._id, username: user.username, email: user.email } 
+        });
     } catch (err) {
-        res.status(500).json({ msg: "Server Error" });
+        res.status(500).json({ success: false, msg: "Server Error" });
     }
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Backend running on port ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
