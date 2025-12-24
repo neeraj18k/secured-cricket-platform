@@ -26,8 +26,9 @@ router.post("/signup", async (req, res) => {
 
     await user.save();
 
-    // ❌ NO EMAIL HERE (industry standard)
+    // ❌ No email on signup (best practice)
     res.status(201).json({ success: true, message: "Signup successful" });
+
   } catch (err) {
     console.error("SIGNUP ERROR:", err);
     res.status(500).json({ message: "Signup failed" });
@@ -47,10 +48,10 @@ router.post("/login", async (req, res) => {
     if (!isMatch)
       return res.status(400).json({ message: "Invalid credentials" });
 
-    // ⭐ WELCOME MAIL ONLY ON FIRST LOGIN
+    // ⭐ Welcome mail ONLY on first login
     if (user.firstLogin) {
       await transporter.sendMail({
-        from: `"Secure Cricket" <${process.env.EMAIL_USER}>`,
+        from: "Secure Cricket <no-reply@securecricket.com>",
         to: user.email,
         subject: "Welcome to Secure Cricket 🏏",
         html: `
@@ -72,6 +73,7 @@ router.post("/login", async (req, res) => {
         email: user.email
       }
     });
+
   } catch (err) {
     console.error("LOGIN ERROR:", err);
     res.status(500).json({ message: "Login failed" });
@@ -93,19 +95,22 @@ router.post("/forgot-password", async (req, res) => {
     user.resetTokenExpiry = Date.now() + 60 * 60 * 1000;
     await user.save();
 
-    const resetLink = `https://secured-cricket-platform.vercel.app/reset-password/${token}`;
+    const resetLink =
+      `https://secured-cricket-platform.vercel.app/reset-password/${token}`;
 
     await transporter.sendMail({
+      from: "Secure Cricket <no-reply@securecricket.com>",
       to: email,
-      subject: "Reset Password 🔐",
+      subject: "Reset Your Password 🔐",
       html: `
-        <p>Click below to reset your password:</p>
+        <p>Click the link below to reset your password:</p>
         <a href="${resetLink}">Reset Password</a>
-        <p>Link valid for 1 hour.</p>
+        <p>This link is valid for 1 hour.</p>
       `
     });
 
     res.json({ success: true, message: "Reset link sent" });
+
   } catch (err) {
     console.error("FORGOT ERROR:", err);
     res.status(500).json({ message: "Reset failed" });
@@ -132,6 +137,7 @@ router.post("/reset-password/:token", async (req, res) => {
     await user.save();
 
     res.json({ success: true, message: "Password updated" });
+
   } catch (err) {
     console.error("RESET ERROR:", err);
     res.status(500).json({ message: "Reset failed" });

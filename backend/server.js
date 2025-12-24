@@ -20,14 +20,14 @@ mongoose.connect(process.env.MONGODB_URI)
 
 app.use("/api/auth", authRoutes);
 
-// 🔎 email test
+/* 🔎 EMAIL TEST ROUTE */
 app.get("/api/test-email", async (req, res) => {
   const transporter = require("./utils/mailer");
   try {
     await transporter.sendMail({
-      to: process.env.EMAIL_USER,
+      to: process.env.BREVO_USER,
       subject: "Email Test",
-      html: "<h3>Email working</h3>"
+      html: "<h3>Email system working</h3>"
     });
     res.send("EMAIL OK");
   } catch (e) {
@@ -37,4 +37,4 @@ app.get("/api/test-email", async (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log("Server running on", PORT));
+app.listen(PORT, () => console.log("Server running on port", PORT));
