@@ -4,6 +4,7 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 
 const authRoutes = require("./routes/auth");
+const { sendMail } = require("./utils/mailer");
 
 const app = express();
 
@@ -20,14 +21,13 @@ mongoose.connect(process.env.MONGODB_URI)
 
 app.use("/api/auth", authRoutes);
 
-/* 🔎 EMAIL TEST ROUTE */
+/* TEST EMAIL ROUTE */
 app.get("/api/test-email", async (req, res) => {
-  const transporter = require("./utils/mailer");
   try {
-    await transporter.sendMail({
-      to: process.env.BREVO_USER,
+    await sendMail({
+      to: "mpneerajkumar28@gmail.com",
       subject: "Email Test",
-      html: "<h3>Email system working</h3>"
+      html: "<h3>Email is working 🎉</h3>"
     });
     res.send("EMAIL OK");
   } catch (e) {

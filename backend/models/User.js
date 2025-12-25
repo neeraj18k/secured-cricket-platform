@@ -5,7 +5,7 @@ const userSchema = new mongoose.Schema({
   email:    { type: String, required: true, unique: true },
   password: { type: String, required: true },
 
-  firstLogin: { type: Boolean, default: true }, // ⭐ welcome mail control
+  firstLogin: { type: Boolean, default: true },
 
   resetToken: String,
   resetTokenExpiry: Date

@@ -3,62 +3,50 @@ const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 
 const User = require("../models/User");
-const transporter = require("../utils/mailer");
+const { sendMail } = require("../utils/mailer");
 
 const router = express.Router();
 
-/* ================= SIGNUP ================= */
+/* ============ SIGNUP ============ */
 router.post("/signup", async (req, res) => {
   try {
     const { username, email, password } = req.body;
 
-    const exists = await User.findOne({ email });
-    if (exists)
+    if (await User.findOne({ email })) {
       return res.status(400).json({ message: "User already exists" });
+    }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashed = await bcrypt.hash(password, 10);
 
-    const user = new User({
+    await new User({
       username,
       email,
-      password: hashedPassword
-    });
+      password: hashed
+    }).save();
 
-    await user.save();
-
-    // ❌ No email on signup (best practice)
     res.status(201).json({ success: true, message: "Signup successful" });
-
   } catch (err) {
-    console.error("SIGNUP ERROR:", err);
+    console.error(err);
     res.status(500).json({ message: "Signup failed" });
   }
 });
 
-/* ================= LOGIN ================= */
+/* ============ LOGIN ============ */
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
     const user = await User.findOne({ email });
-    if (!user)
-      return res.status(400).json({ message: "Invalid credentials" });
+    if (!user) return res.status(400).json({ message: "Invalid credentials" });
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch)
-      return res.status(400).json({ message: "Invalid credentials" });
+    const match = await bcrypt.compare(password, user.password);
+    if (!match) return res.status(400).json({ message: "Invalid credentials" });
 
-    // ⭐ Welcome mail ONLY on first login
     if (user.firstLogin) {
-      await transporter.sendMail({
-        from: "Secure Cricket <no-reply@securecricket.com>",
+      await sendMail({
         to: user.email,
         subject: "Welcome to Secure Cricket 🏏",
-        html: `
-          <h2>Welcome ${user.username} 👋</h2>
-          <p>Your account is now active.</p>
-          <p>Enjoy live scores, analytics & insights.</p>
-        `
+        html: `<h2>Welcome ${user.username}</h2><p>Your account is ready.</p>`
       });
 
       user.firstLogin = false;
@@ -67,79 +55,61 @@ router.post("/login", async (req, res) => {
 
     res.json({
       success: true,
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email
-      }
+      user: { id: user._id, email: user.email, username: user.username }
     });
-
   } catch (err) {
-    console.error("LOGIN ERROR:", err);
+    console.error(err);
     res.status(500).json({ message: "Login failed" });
   }
 });
 
-/* ================= FORGOT PASSWORD ================= */
+/* ============ FORGOT PASSWORD ============ */
 router.post("/forgot-password", async (req, res) => {
   try {
-    const { email } = req.body;
-
-    const user = await User.findOne({ email });
-    if (!user)
-      return res.status(404).json({ message: "User not found" });
+    const user = await User.findOne({ email: req.body.email });
+    if (!user) return res.status(404).json({ message: "User not found" });
 
     const token = crypto.randomBytes(20).toString("hex");
-
     user.resetToken = token;
-    user.resetTokenExpiry = Date.now() + 60 * 60 * 1000;
+    user.resetTokenExpiry = Date.now() + 3600000;
     await user.save();
 
-    const resetLink =
-      `https://secured-cricket-platform.vercel.app/reset-password/${token}`;
-
-    await transporter.sendMail({
-      from: "Secure Cricket <no-reply@securecricket.com>",
-      to: email,
-      subject: "Reset Your Password 🔐",
+    await sendMail({
+      to: user.email,
+      subject: "Reset Password",
       html: `
-        <p>Click the link below to reset your password:</p>
-        <a href="${resetLink}">Reset Password</a>
-        <p>This link is valid for 1 hour.</p>
+        <p>Click to reset password:</p>
+        <a href="https://secured-cricket-platform.vercel.app/reset-password/${token}">
+          Reset Password
+        </a>
       `
     });
 
     res.json({ success: true, message: "Reset link sent" });
-
   } catch (err) {
-    console.error("FORGOT ERROR:", err);
+    console.error(err);
     res.status(500).json({ message: "Reset failed" });
   }
 });
 
-/* ================= RESET PASSWORD ================= */
+/* ============ RESET PASSWORD ============ */
 router.post("/reset-password/:token", async (req, res) => {
   try {
-    const { password } = req.body;
-
     const user = await User.findOne({
       resetToken: req.params.token,
       resetTokenExpiry: { $gt: Date.now() }
     });
 
-    if (!user)
-      return res.status(400).json({ message: "Invalid or expired token" });
+    if (!user) return res.status(400).json({ message: "Invalid or expired token" });
 
-    user.password = await bcrypt.hash(password, 10);
+    user.password = await bcrypt.hash(req.body.password, 10);
     user.resetToken = undefined;
     user.resetTokenExpiry = undefined;
-
     await user.save();
 
     res.json({ success: true, message: "Password updated" });
-
   } catch (err) {
-    console.error("RESET ERROR:", err);
+    console.error(err);
     res.status(500).json({ message: "Reset failed" });
   }
 });
